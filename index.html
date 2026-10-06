@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Inspection Photo Packager</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<style>
+  :root{
+    --bg:#0f0f0f;
+    --tile:#1f1f1f;
+    --tile-2:#161616;
+    --ink:#f3f3f3;
+    --ink-soft:#a0a4a8;
+    --line:#3a3a3a;
+    --blue:#0a84ff;
+    --blue-dark:#0060df;
+    --green:#2ea043;
+    --green-dark:#238636;
+    --orange:#f0591f;
+    --orange-dark:#c2410c;
+    --amber:#ffb900;
+    --red:#ff453a;
+    --grey:#48484a;
+    --accent-soft:#10243a;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html{color-scheme:dark;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI","Segoe UI Web (West European)",-apple-system,BlinkMacSystemFont,Roboto,"Helvetica Neue",Arial,sans-serif;
+    font-weight:400;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* ---- Metro header ---- */
+  .appbar{
+    background:var(--blue);
+    color:#fff;
+    padding:18px 20px 16px;
+  }
+  .appbar h1{
+    margin:0;
+    font-size:20px;
+    font-weight:600;
+    letter-spacing:.3px;
+  }
+  .appbar p{
+    margin:2px 0 0;
+    font-size:13px;
+    font-weight:300;
+    opacity:.9;
+  }
+  .wrap{max-width:900px;margin:0 auto;padding:16px;}
+
+  /* ---- Generic tile/button ---- */
+  .tile{background:var(--tile);border:1px solid var(--line);padding:16px;}
+  label.fld{display:block;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--ink-soft);margin-bottom:6px;}
+  input.txt{
+    width:100%;font-size:17px;padding:12px 12px;border:2px solid var(--line);
+    background:var(--tile-2);color:var(--ink);outline:none;font-family:inherit;
+  }
+  input.txt::placeholder{color:#6b6f73;}
+  input.txt:focus{border-color:var(--blue);}
+
+  .btn{
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    width:100%;border:none;color:#fff;font-family:inherit;font-size:17px;font-weight:600;
+    padding:18px 16px;cursor:pointer;text-align:center;letter-spacing:.3px;
+    transition:filter .12s ease;
+  }
+  .btn:active{filter:brightness(.9);}
+  .btn[disabled]{opacity:.45;cursor:not-allowed;}
+  .btn .ic{font-size:22px;line-height:1;}
+  .b-blue{background:var(--blue);}   .b-blue:hover{background:var(--blue-dark);}
+  .b-green{background:var(--green);}  .b-green:hover{background:var(--green-dark);}
+  .b-orange{background:var(--orange);}.b-orange:hover{background:var(--orange-dark);}
+  .b-grey{background:var(--grey);}
+  .b-ghost{background:transparent;color:var(--blue);font-weight:600;border:2px solid var(--blue);}
+  .b-ghost:active{filter:none;background:rgba(0,120,215,.08);}
+
+  .hidden{display:none !important;}
+
+  /* ---- Drop zone ---- */
+  #dropZone{
+    position:relative;border:3px dashed var(--line);background:var(--tile);
+    padding:48px 20px;text-align:center;cursor:pointer;transition:all .15s ease;
+  }
+  #dropZone.drag{border-color:var(--blue);background:var(--accent-soft);}
+  #dropZone .big{font-size:46px;color:var(--blue);line-height:1;}
+  #dropZone .t1{font-size:20px;font-weight:600;margin-top:14px;}
+  #dropZone .t2{font-size:14px;color:var(--ink-soft);margin-top:6px;}
+  #dropZone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;}
+
+  /* ---- Status / size pill ---- */
+  .statusbar{
+    display:flex;align-items:center;gap:12px;background:var(--tile);border:1px solid var(--line);
+    padding:14px 16px;margin-bottom:14px;
+  }
+  .statusbar .dot{width:12px;height:12px;flex:0 0 auto;background:var(--amber);}
+  .statusbar.ok .dot{background:var(--green);}
+  .statusbar.work .dot{background:var(--blue);animation:pulse 1s infinite;}
+  .statusbar.err .dot{background:var(--red);}
+  @keyframes pulse{50%{opacity:.3;}}
+  .statusbar .st{font-size:14px;font-weight:600;}
+  .statusbar .sub{font-size:12px;color:var(--ink-soft);}
+
+  /* ---- Thumbnail grid ---- */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;margin-top:4px;}
+  .thumb{position:relative;aspect-ratio:1/1;background:#000;border:1px solid var(--line);overflow:hidden;cursor:pointer;}
+  .thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .thumb .x{
+    position:absolute;top:0;right:0;width:26px;height:26px;background:rgba(0,0,0,.6);color:#fff;
+    border:none;font-size:16px;line-height:26px;cursor:pointer;
+  }
+  .thumb .num{position:absolute;bottom:0;left:0;background:rgba(0,0,0,.6);color:#fff;font-size:11px;padding:1px 6px;}
+  .addtile{display:flex;align-items:center;justify-content:center;aspect-ratio:1/1;border:2px dashed var(--line);background:var(--tile);color:var(--blue);font-size:34px;cursor:pointer;position:relative;}
+  .addtile input{position:absolute;inset:0;opacity:0;cursor:pointer;}
+
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .actions{display:flex;flex-direction:column;gap:10px;margin:16px 0;}
+  .section-h{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--ink-soft);margin:22px 2px 8px;}
+
+  /* ---- Editor ---- */
+  #screenEditor{display:none;flex-direction:column;}
+  .ed-top{background:var(--blue);color:#fff;display:flex;align-items:center;gap:12px;padding:12px 14px;}
+  .ed-top .b-back{background:rgba(255,255,255,.18);border:none;color:#fff;font-size:15px;font-weight:600;padding:9px 14px;cursor:pointer;display:flex;align-items:center;gap:6px;}
+  .ed-top .b-back:active{background:rgba(255,255,255,.3);}
+  .ed-top .pos{font-size:14px;font-weight:600;margin-left:auto;}
+  .ed-nav{background:rgba(255,255,255,.18);border:none;color:#fff;width:40px;height:38px;font-size:20px;cursor:pointer;}
+  .ed-nav:active{background:rgba(255,255,255,.3);}
+  .ed-nav[disabled]{opacity:.35;}
+
+  .canvas-stage{background:#000;display:flex;align-items:center;justify-content:center;padding:10px;}
+  #edCanvas{max-width:100%;max-height:60vh;touch-action:none;background:#000;display:block;}
+
+  .ctrl{background:var(--tile);border-top:1px solid var(--line);padding:14px 16px;}
+  .tool-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
+  .tool{
+    flex:1 1 auto;min-width:64px;border:2px solid var(--line);background:var(--tile-2);color:var(--ink);
+    font-family:inherit;font-size:13px;font-weight:600;padding:10px 6px;cursor:pointer;display:flex;
+    flex-direction:column;align-items:center;gap:3px;
+  }
+  .tool .ti{font-size:18px;line-height:1;}
+  .tool.active{border-color:var(--blue);background:var(--accent-soft);color:#fff;}
+
+  .swatches{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;}
+  .sw{width:30px;height:30px;border:3px solid var(--tile);outline:1px solid var(--line);cursor:pointer;}
+  .sw.active{outline:3px solid var(--ink);}
+
+  .slider-grp{margin:10px 0;}
+  .slider-grp .lbl{display:flex;justify-content:space-between;font-size:13px;font-weight:600;color:var(--ink-soft);margin-bottom:4px;}
+  .slider-grp .val{color:var(--blue-dark);}
+  input[type=range]{width:100%;appearance:none;-webkit-appearance:none;height:6px;background:var(--line);outline:none;}
+  input[type=range]::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:24px;height:24px;background:var(--blue);cursor:pointer;border-radius:0;}
+  input[type=range]::-moz-range-thumb{width:24px;height:24px;background:var(--blue);cursor:pointer;border:none;border-radius:0;}
+
+  .ed-foot{display:flex;gap:8px;padding:12px 16px;background:var(--tile);border-top:1px solid var(--line);}
+  .ed-foot .btn{padding:12px;font-size:15px;}
+  .tiny{font-size:12px;color:var(--ink-soft);text-align:center;margin-top:2px;}
+  .hint{font-size:12px;color:var(--ink-soft);margin-top:-4px;margin-bottom:10px;}
+</style>
+</head>
+<body>
+
+<!-- ============ SCREEN 1: UPLOAD ============ -->
+<div id="screenUpload">
+  <div class="appbar">
+    <h1>Inspection Photo Packager</h1>
+    <p>Compress a batch of photos into one emailable ZIP (under 25&nbsp;MB)</p>
+  </div>
+  <div class="wrap">
+    <div class="tile" style="margin-bottom:14px;">
+      <label class="fld" for="propertyName">Property Name</label>
+      <input class="txt" id="propertyName" type="text" placeholder="e.g. 1420 Oak Street — Unit 3B" autocomplete="off">
+    </div>
+
+    <div id="dropZone">
+      <input type="file" id="fileInput" multiple accept="image/*">
+      <div class="big">⬆</div>
+      <div class="t1">Drag &amp; drop your photos</div>
+      <div class="t2">…or tap to choose from your device</div>
+    </div>
+    <p class="tiny" style="margin-top:12px;">Photos stay on your device. Nothing is uploaded to a server.</p>
+  </div>
+</div>
+
+<!-- ============ SCREEN 2: ACTIONS ============ -->
+<div id="screenActions" class="hidden">
+  <div class="appbar">
+    <h1 id="actTitle">Inspection Photos</h1>
+    <p id="actSub">0 photos</p>
+  </div>
+  <div class="wrap">
+
+    <div class="statusbar work" id="statusbar">
+      <div class="dot"></div>
+      <div>
+        <div class="st" id="statusText">Preparing ZIP…</div>
+        <div class="sub" id="statusSub">Compressing to fit under 25 MB</div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn b-blue"   id="btnDownload" disabled><span class="ic">⬇</span> Download ZIP</button>
+      <div class="row2">
+        <button class="btn b-green"  id="btnEmail" disabled><span class="ic">✉</span> Email</button>
+        <button class="btn b-orange" id="btnEdit"><span class="ic">✎</span> Edit Photos</button>
+      </div>
+    </div>
+
+    <div class="section-h">Photos (<span id="photoCount">0</span>)</div>
+    <div class="grid" id="thumbGrid"></div>
+
+    <div style="margin-top:22px;display:flex;gap:10px;">
+      <button class="btn b-ghost" id="btnStartOver" style="font-size:15px;padding:12px;">Start Over</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SCREEN 3: EDITOR ============ -->
+<div id="screenEditor">
+  <div class="ed-top">
+    <button class="b-back" id="btnBack">◀ Back</button>
+    <button class="ed-nav" id="btnPrev">‹</button>
+    <button class="ed-nav" id="btnNext">›</button>
+    <span class="pos" id="edPos">1 / 1</span>
+  </div>
+
+  <div class="canvas-stage">
+    <canvas id="edCanvas"></canvas>
+  </div>
+
+  <div class="ctrl">
+    <div class="tool-row">
+      <button class="tool active" data-tool="move"><span class="ti">✋</span>Move</button>
+      <button class="tool" data-tool="text"><span class="ti">T</span>Text</button>
+      <button class="tool" data-tool="rect"><span class="ti">▭</span>Box</button>
+      <button class="tool" data-tool="circle"><span class="ti">◯</span>Circle</button>
+      <button class="tool" data-tool="delete"><span class="ti">🗑</span>Delete</button>
+    </div>
+    <p class="hint" id="toolHint">Move: drag any annotation to reposition it. On empty space, drag to pan when zoomed.</p>
+
+    <div class="swatches" id="swatches"></div>
+
+    <div class="slider-grp">
+      <div class="lbl"><span>Zoom</span><span class="val" id="zoomVal">1.0×</span></div>
+      <input type="range" id="zoom" min="1" max="4" step="0.05" value="1">
+    </div>
+    <div class="slider-grp">
+      <div class="lbl"><span>Brightness</span><span class="val" id="briVal">100%</span></div>
+      <input type="range" id="brightness" min="0" max="200" step="1" value="100">
+    </div>
+    <div class="slider-grp">
+      <div class="lbl"><span>Contrast</span><span class="val" id="conVal">100%</span></div>
+      <input type="range" id="contrast" min="0" max="200" step="1" value="100">
+    </div>
+  </div>
+
+  <div class="ed-foot">
+    <button class="btn b-grey" id="btnReset" style="flex:1;">Reset This Photo</button>
+    <button class="btn b-blue" id="btnDone" style="flex:2;">Done Editing</button>
+  </div>
+</div>
+
+<script>
+/* =======================================================================
+   Inspection Photo Packager  — single-file app
+   ======================================================================= */
+
+const TARGET_BYTES = 24 * 1024 * 1024;   // aim under 25MB with headroom
+const SWATCH_COLORS = ['#e81123','#ffb900','#107c10','#0078d7','#ffffff','#000000'];
+
+let photos = [];          // see makePhoto()
+let editIndex = 0;
+let zipBlob = null;       // cached result
+let zipDirty = true;      // needs (re)compression
+let lastZipSize = 0;
+
+// editor interaction state
+let tool = 'move';
+let activeColor = '#e81123';
+let selectedAnno = null;
+let dragState = null;
+
+/* ---------- element refs ---------- */
+const $ = id => document.getElementById(id);
+const screenUpload = $('screenUpload'), screenActions = $('screenActions'), screenEditor = $('screenEditor');
+const dropZone = $('dropZone'), fileInput = $('fileInput');
+const propertyName = $('propertyName');
+const thumbGrid = $('thumbGrid');
+const statusbar = $('statusbar'), statusText = $('statusText'), statusSub = $('statusSub');
+const btnDownload = $('btnDownload'), btnEmail = $('btnEmail'), btnEdit = $('btnEdit'), btnStartOver = $('btnStartOver');
+const edCanvas = $('edCanvas'), edCtx = edCanvas.getContext('2d');
+
+/* ---------- data model ---------- */
+function makePhoto(file, img){
+  return {
+    id: Math.random().toString(36).slice(2),
+    file, img,                      // HTMLImageElement of the original
+    brightness:100, contrast:100,
+    zoom:1, panX:0.5, panY:0.5,
+    annotations:[],                 // {type,x,y,w,h,color,text}
+    thumb:null
+  };
+}
+
+/* ======================= UPLOAD ======================= */
+dropZone.addEventListener('dragover', e=>{e.preventDefault();dropZone.classList.add('drag');});
+dropZone.addEventListener('dragleave', ()=>dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', e=>{e.preventDefault();dropZone.classList.remove('drag');addFiles(e.dataTransfer.files);});
+fileInput.addEventListener('change', e=>addFiles(e.target.files));
+
+function addFiles(fileList){
+  const imgs = Array.from(fileList).filter(f=>f.type.startsWith('image/'));
+  if(!imgs.length) return;
+  let pending = imgs.length;
+  imgs.forEach(file=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const p = makePhoto(file, img);
+      photos.push(p);
+      renderThumb(p).then(()=>{ if(--pending===0) afterAdd(); });
+    };
+    img.onerror = ()=>{ if(--pending===0) afterAdd(); };
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+function afterAdd(){
+  if(!photos.length) return;
+  zipDirty = true;
+  goActions();
+  buildThumbGrid();
+  prepareZip();
+}
+
+/* ======================= SCREEN SWITCHING ======================= */
+function show(screen){
+  screenUpload.classList.add('hidden');
+  screenActions.classList.add('hidden');
+  screenEditor.style.display='none';
+  if(screen===screenEditor){ screen.style.display='flex'; }
+  else screen.classList.remove('hidden');
+  window.scrollTo(0,0);
+}
+function goActions(){
+  show(screenActions);
+  const name = propertyName.value.trim();
+  $('actTitle').textContent = name ? name : 'Inspection Photos';
+  $('actSub').textContent = `${photos.length} photo${photos.length!==1?'s':''}`;
+  $('photoCount').textContent = photos.length;
+}
+
+/* ======================= THUMBNAILS ======================= */
+function renderThumb(p){
+  return new Promise(res=>{
+    const c = renderPhoto(p, 220);
+    p.thumb = c.toDataURL('image/jpeg', 0.8);
+    res();
+  });
+}
+function buildThumbGrid(){
+  thumbGrid.innerHTML='';
+  photos.forEach((p,i)=>{
+    const d = document.createElement('div');
+    d.className='thumb';
+    d.innerHTML = `<img src="${p.thumb}" alt=""><span class="num">${i+1}</span><button class="x" title="Remove">×</button>`;
+    d.querySelector('img').addEventListener('click', ()=>openEditor(i));
+    d.querySelector('.x').addEventListener('click', e=>{e.stopPropagation();removePhoto(p.id);});
+    thumbGrid.appendChild(d);
+  });
+  // add tile
+  const add = document.createElement('label');
+  add.className='addtile';
+  add.innerHTML = `+<input type="file" multiple accept="image/*">`;
+  add.querySelector('input').addEventListener('change', e=>addFiles(e.target.files));
+  thumbGrid.appendChild(add);
+}
+function removePhoto(id){
+  photos = photos.filter(p=>p.id!==id);
+  if(!photos.length){ resetApp(); return; }
+  zipDirty = true;
+  goActions();
+  buildThumbGrid();
+  prepareZip();
+}
+
+/* ======================= RENDER A PHOTO (edits + annotations baked) =======================
+   Produces a canvas whose longest side <= maxDim, aspect = original aspect.
+   Zoom = centered crop; pan selects which part is visible.                                   */
+function renderPhoto(p, maxDim){
+  const img = p.img;
+  const iw = img.naturalWidth, ih = img.naturalHeight;
+  const aspect = iw/ih;
+  let ow, oh;
+  if(iw>=ih){ ow = Math.min(maxDim, iw); oh = Math.round(ow/aspect); }
+  else      { oh = Math.min(maxDim, ih); ow = Math.round(oh*aspect); }
+
+  const c = document.createElement('canvas');
+  c.width=ow; c.height=oh;
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
+  ctx.fillStyle='#000'; ctx.fillRect(0,0,ow,oh);
+
+  // visible source region from zoom/pan
+  const visW = iw / p.zoom, visH = ih / p.zoom;
+  const sx = p.panX * (iw - visW);
+  const sy = p.panY * (ih - visH);
+
+  ctx.filter = `brightness(${p.brightness}%) contrast(${p.contrast}%)`;
+  ctx.drawImage(img, sx, sy, visW, visH, 0, 0, ow, oh);
+  ctx.filter='none';
+
+  drawAnnotations(ctx, p, ow, oh, null);
+  return c;
+}
+
+function drawAnnotations(ctx, p, W, H, selected){
+  const lw = Math.max(2, Math.round(W*0.006));
+  p.annotations.forEach(a=>{
+    ctx.lineWidth = lw;
+    ctx.strokeStyle = a.color;
+    ctx.fillStyle = a.color;
+    if(a.type==='rect'){
+      ctx.strokeRect(a.x*W, a.y*H, a.w*W, a.h*H);
+    } else if(a.type==='circle'){
+      ctx.beginPath();
+      ctx.ellipse((a.x+a.w/2)*W, (a.y+a.h/2)*H, Math.abs(a.w/2)*W, Math.abs(a.h/2)*H, 0, 0, Math.PI*2);
+      ctx.stroke();
+    } else if(a.type==='text'){
+      const fs = Math.max(12, a.h*H);
+      ctx.font = `bold ${fs}px "Segoe UI",Arial,sans-serif`;
+      ctx.textBaseline='top';
+      // readability outline
+      ctx.lineWidth = Math.max(2, fs*0.12);
+      ctx.strokeStyle = (a.color.toLowerCase()==='#ffffff'||a.color.toLowerCase()==='#ffb900') ? '#000' : '#fff';
+      ctx.strokeText(a.text, a.x*W, a.y*H);
+      ctx.fillStyle = a.color;
+      ctx.fillText(a.text, a.x*W, a.y*H);
+    }
+    // selection outline (editor only)
+    if(selected && a===selected){
+      const b = annoBounds(a, W, H, ctx);
+      ctx.save();
+      ctx.setLineDash([6,4]);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#00a2ff';
+      ctx.strokeRect(b.x-6, b.y-6, b.w+12, b.h+12);
+      ctx.restore();
+    }
+  });
+}
+
+function annoBounds(a, W, H, ctx){
+  if(a.type==='text'){
+    const fs = Math.max(12, a.h*H);
+    if(ctx){ ctx.font = `bold ${fs}px "Segoe UI",Arial,sans-serif`; }
+    const tw = ctx ? ctx.measureText(a.text).width : a.text.length*fs*0.55;
+    return {x:a.x*W, y:a.y*H, w:tw, h:fs};
+  }
+  const x = Math.min(a.x, a.x+a.w)*W, y = Math.min(a.y, a.y+a.h)*H;
+  return {x, y, w:Math.abs(a.w)*W, h:Math.abs(a.h)*H};
+}
+
+/* ======================= ZIP / COMPRESSION ======================= */
+function zipBaseName(){
+  const name = propertyName.value.trim() || 'Property';
+  return `${name} - Inspection Photos`;
+}
+function canvasToBlob(c, q){
+  return new Promise(res=>c.toBlob(res, 'image/jpeg', q));
+}
+
+async function prepareZip(){
+  zipDirty = true;
+  setStatus('work','Preparing ZIP…','Compressing to fit under 25 MB');
+  btnDownload.disabled = true; btnEmail.disabled = true;
+  try{
+    const {blob, size} = await buildZip();
+    zipBlob = blob; lastZipSize = size; zipDirty = false;
+    const mb = (size/1024/1024).toFixed(1);
+    setStatus('ok', `Ready — ${mb} MB`, `${photos.length} photo${photos.length!==1?'s':''} · fits under 25 MB email limit`);
+    btnDownload.disabled = false; btnEmail.disabled = false;
+  }catch(err){
+    console.error(err);
+    setStatus('err','Could not build ZIP','Try removing a photo and retry.');
+  }
+}
+
+// Iteratively lower quality, then dimensions, until total <= TARGET_BYTES
+async function buildZip(){
+  const attempts = [
+    {maxDim:2000, q:0.82},
+    {maxDim:2000, q:0.70},
+    {maxDim:1600, q:0.70},
+    {maxDim:1600, q:0.58},
+    {maxDim:1280, q:0.60},
+    {maxDim:1280, q:0.48},
+    {maxDim:1024, q:0.55},
+    {maxDim:1024, q:0.42},
+    {maxDim:800,  q:0.50},
+    {maxDim:800,  q:0.38},
+    {maxDim:640,  q:0.40},
+  ];
+  let chosen = null, blobs = null;
+  for(let i=0;i<attempts.length;i++){
+    const a = attempts[i];
+    setStatus('work','Compressing…',`Quality pass ${i+1} (max ${a.maxDim}px)`);
+    const result = [];
+    let total = 0;
+    for(const p of photos){
+      const c = renderPhoto(p, a.maxDim);
+      const b = await canvasToBlob(c, a.q);
+      result.push(b);
+      total += b.size;
+      await new Promise(r=>setTimeout(r,0)); // yield so UI updates
+    }
+    if(total <= TARGET_BYTES || i===attempts.length-1){
+      chosen = a; blobs = result;
+      break;
+    }
+  }
+  // assemble zip (store level 0 — JPEGs are already compressed)
+  setStatus('work','Packaging…','Creating the ZIP file');
+  const zip = new JSZip();
+  const base = zipBaseName();
+  const pad = String(photos.length).length;
+  blobs.forEach((b,i)=>{
+    const n = String(i+1).padStart(pad,'0');
+    zip.file(`${base.replace(/[\\/:*?"<>|]/g,'_')}_${n}.jpg`, b);
+  });
+  const out = await zip.generateAsync({type:'blob', compression:'STORE'});
+  return {blob: out, size: out.size};
+}
+
+function setStatus(kind, text, sub){
+  statusbar.className = 'statusbar ' + kind;
+  statusText.textContent = text;
+  statusSub.textContent = sub;
+}
+
+async function ensureZip(){
+  if(zipDirty || !zipBlob) await prepareZip();
+  return zipBlob;
+}
+
+/* ---------- Download ---------- */
+btnDownload.addEventListener('click', async ()=>{
+  const blob = await ensureZip();
+  if(blob) saveAs(blob, zipBaseName().replace(/[\\/:*?"<>|]/g,'_') + '.zip');
+});
+
+/* ---------- Email (Web Share with file, fallback to mailto) ---------- */
+btnEmail.addEventListener('click', async ()=>{
+  const blob = await ensureZip();
+  if(!blob) return;
+  const base = zipBaseName();
+  const fname = base.replace(/[\\/:*?"<>|]/g,'_') + '.zip';
+  const file = new File([blob], fname, {type:'application/zip'});
+
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{
+      await navigator.share({
+        files:[file],
+        title: base,
+        text: `${base}\n\nPlease find the inspection photos attached.`
+      });
+      return;
+    }catch(err){
+      if(err && err.name==='AbortError') return; // user cancelled
+      console.warn('Share failed, falling back to mailto', err);
+    }
+  }
+  // Fallback: download the zip + open a pre-filled email for manual attach
+  saveAs(blob, fname);
+  const subject = encodeURIComponent(base);
+  const body = encodeURIComponent(
+    `Please find the inspection photos attached.\n\n`+
+    `(The ZIP "${fname}" was just downloaded — attach it to this email.)`
+  );
+  setTimeout(()=>{ window.location.href = `mailto:?subject=${subject}&body=${body}`; }, 400);
+});
+
+btnStartOver.addEventListener('click', ()=>{ if(confirm('Clear all photos and start over?')) resetApp(); });
+function resetApp(){
+  photos=[]; zipBlob=null; zipDirty=true; thumbGrid.innerHTML='';
+  fileInput.value='';
+  show(screenUpload);
+}
+
+/* ======================= EDITOR ======================= */
+btnEdit.addEventListener('click', ()=>{ if(photos.length) openEditor(0); });
+
+function openEditor(i){
+  editIndex = i;
+  selectedAnno = null;
+  show(screenEditor);
+  loadEditorPhoto();
+}
+
+function loadEditorPhoto(){
+  const p = photos[editIndex];
+  $('edPos').textContent = `${editIndex+1} / ${photos.length}`;
+  $('btnPrev').disabled = editIndex===0;
+  $('btnNext').disabled = editIndex===photos.length-1;
+  $('zoom').value = p.zoom;       $('zoomVal').textContent = p.zoom.toFixed(1)+'×';
+  $('brightness').value = p.brightness; $('briVal').textContent = p.brightness+'%';
+  $('contrast').value = p.contrast;     $('conVal').textContent = p.contrast+'%';
+  selectedAnno = null;
+  sizeEditorCanvas();
+  drawEditor();
+}
+
+// size the display canvas to fit the stage while keeping image aspect
+function sizeEditorCanvas(){
+  const p = photos[editIndex];
+  const aspect = p.img.naturalWidth / p.img.naturalHeight;
+  const stage = edCanvas.parentElement;
+  const maxW = stage.clientWidth - 20;
+  const maxH = Math.min(window.innerHeight*0.6, 640);
+  let w = maxW, h = w/aspect;
+  if(h>maxH){ h=maxH; w=h*aspect; }
+  const dpr = Math.min(window.devicePixelRatio||1, 2);
+  edCanvas.style.width = w+'px';
+  edCanvas.style.height = h+'px';
+  edCanvas.width = Math.round(w*dpr);
+  edCanvas.height = Math.round(h*dpr);
+}
+
+function drawEditor(){
+  const p = photos[editIndex];
+  const W = edCanvas.width, H = edCanvas.height;
+  const img = p.img;
+  const iw = img.naturalWidth, ih = img.naturalHeight;
+  edCtx.setTransform(1,0,0,1,0,0);
+  edCtx.fillStyle='#000'; edCtx.fillRect(0,0,W,H);
+
+  const visW = iw / p.zoom, visH = ih / p.zoom;
+  const sx = p.panX*(iw-visW), sy = p.panY*(ih-visH);
+  edCtx.filter = `brightness(${p.brightness}%) contrast(${p.contrast}%)`;
+  edCtx.drawImage(img, sx, sy, visW, visH, 0, 0, W, H);
+  edCtx.filter='none';
+  drawAnnotations(edCtx, p, W, H, selectedAnno);
+}
+
+/* ---- sliders ---- */
+$('zoom').addEventListener('input', e=>{
+  const p=photos[editIndex]; p.zoom=parseFloat(e.target.value);
+  $('zoomVal').textContent=p.zoom.toFixed(1)+'×'; zipDirty=true; drawEditor();
+});
+$('brightness').addEventListener('input', e=>{
+  const p=photos[editIndex]; p.brightness=parseInt(e.target.value);
+  $('briVal').textContent=p.brightness+'%'; zipDirty=true; drawEditor();
+});
+$('contrast').addEventListener('input', e=>{
+  const p=photos[editIndex]; p.contrast=parseInt(e.target.value);
+  $('conVal').textContent=p.contrast+'%'; zipDirty=true; drawEditor();
+});
+
+/* ---- tools ---- */
+const toolHints = {
+  move:'Move: drag any annotation to reposition it. On empty space, drag to pan when zoomed.',
+  text:'Text: tap empty space to add a label — or drag an existing one to move it.',
+  rect:'Box: tap empty space to drop a box — or drag an existing annotation to move it.',
+  circle:'Circle: tap empty space to drop a circle — or drag an existing annotation to move it.',
+  delete:'Delete: tap an annotation to remove it.'
+};
+document.querySelectorAll('.tool').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tool').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    tool = btn.dataset.tool;
+    $('toolHint').textContent = toolHints[tool];
+  });
+});
+
+/* ---- swatches ---- */
+const swatchWrap = $('swatches');
+SWATCH_COLORS.forEach((c,i)=>{
+  const s=document.createElement('div');
+  s.className='sw'+(i===0?' active':'');
+  s.style.background=c;
+  s.addEventListener('click', ()=>{
+    activeColor=c;
+    document.querySelectorAll('.sw').forEach(x=>x.classList.remove('active'));
+    s.classList.add('active');
+    if(selectedAnno){ selectedAnno.color=c; zipDirty=true; drawEditor(); }
+  });
+  swatchWrap.appendChild(s);
+});
+
+/* ---- navigation ---- */
+$('btnPrev').addEventListener('click', ()=>{ if(editIndex>0){editIndex--;loadEditorPhoto();} });
+$('btnNext').addEventListener('click', ()=>{ if(editIndex<photos.length-1){editIndex++;loadEditorPhoto();} });
+
+$('btnReset').addEventListener('click', ()=>{
+  const p=photos[editIndex];
+  p.brightness=100;p.contrast=100;p.zoom=1;p.panX=0.5;p.panY=0.5;p.annotations=[];
+  selectedAnno=null; zipDirty=true; loadEditorPhoto();
+});
+
+$('btnBack').addEventListener('click', finishEditing);
+$('btnDone').addEventListener('click', finishEditing);
+async function finishEditing(){
+  for(const p of photos){ await renderThumb(p); }
+  goActions();
+  buildThumbGrid();
+  prepareZip();
+}
+
+/* ---- canvas pointer interaction ---- */
+function canvasPos(e){
+  const r = edCanvas.getBoundingClientRect();
+  const x = (e.clientX - r.left) / r.width;
+  const y = (e.clientY - r.top) / r.height;
+  return {x:Math.max(0,Math.min(1,x)), y:Math.max(0,Math.min(1,y))};
+}
+function hitAnno(pos){
+  const p=photos[editIndex];
+  const W=edCanvas.width, H=edCanvas.height;
+  for(let i=p.annotations.length-1;i>=0;i--){
+    const a=p.annotations[i];
+    const b=annoBounds(a,W,H,edCtx);
+    const px=pos.x*W, py=pos.y*H;
+    if(px>=b.x-8 && px<=b.x+b.w+8 && py>=b.y-8 && py<=b.y+b.h+8) return a;
+  }
+  return null;
+}
+
+edCanvas.addEventListener('pointerdown', e=>{
+  e.preventDefault();
+  edCanvas.setPointerCapture(e.pointerId);
+  const pos = canvasPos(e);
+  const p = photos[editIndex];
+
+  if(tool==='delete'){
+    const a=hitAnno(pos);
+    if(a){ p.annotations=p.annotations.filter(x=>x!==a); selectedAnno=null; zipDirty=true; drawEditor(); }
+    return;
+  }
+
+  // In ANY mode: if you tap an existing annotation, select & start moving it.
+  const existing = hitAnno(pos);
+  if(existing){
+    selectedAnno = existing;
+    dragState = {mode:'anno', anno:existing, start:pos, orig:{x:existing.x, y:existing.y}};
+    drawEditor();
+    return;
+  }
+
+  // Empty space → the active create tool runs
+  if(tool==='text'){
+    const txt = prompt('Enter label text:');
+    if(txt && txt.trim()){
+      const a={type:'text', x:pos.x, y:pos.y, w:0, h:0.05, color:activeColor, text:txt.trim()};
+      p.annotations.push(a); selectedAnno=a; zipDirty=true;
+      dragState={mode:'anno', anno:a, start:pos, orig:{x:a.x,y:a.y}};
+      drawEditor();
+    }
+    return;
+  }
+  if(tool==='rect' || tool==='circle'){
+    const a={type:tool, x:pos.x-0.1, y:pos.y-0.08, w:0.2, h:0.16, color:activeColor};
+    a.x=Math.max(0,Math.min(1-a.w,a.x)); a.y=Math.max(0,Math.min(1-a.h,a.y));
+    p.annotations.push(a); selectedAnno=a; zipDirty=true;
+    dragState={mode:'anno', anno:a, start:pos, orig:{x:a.x,y:a.y}};
+    drawEditor();
+    return;
+  }
+  // Move tool on empty space → pan the (zoomed) image
+  selectedAnno=null;
+  dragState={mode:'pan', start:pos, orig:{panX:p.panX,panY:p.panY}};
+  drawEditor();
+});
+
+edCanvas.addEventListener('pointermove', e=>{
+  if(!dragState) return;
+  e.preventDefault();
+  const pos=canvasPos(e);
+  const p=photos[editIndex];
+  const dx=pos.x-dragState.start.x, dy=pos.y-dragState.start.y;
+
+  if(dragState.mode==='anno'){
+    const a=dragState.anno;
+    a.x=dragState.orig.x+dx; a.y=dragState.orig.y+dy;
+    zipDirty=true; drawEditor();
+  } else if(dragState.mode==='pan'){
+    if(p.zoom>1){
+      // dragging the image moves the view opposite
+      p.panX=Math.max(0,Math.min(1,dragState.orig.panX - dx));
+      p.panY=Math.max(0,Math.min(1,dragState.orig.panY - dy));
+      zipDirty=true; drawEditor();
+    }
+  }
+});
+function endDrag(){ dragState=null; }
+edCanvas.addEventListener('pointerup', endDrag);
+edCanvas.addEventListener('pointercancel', endDrag);
+
+window.addEventListener('resize', ()=>{
+  if(screenEditor.style.display==='flex'){ sizeEditorCanvas(); drawEditor(); }
+});
+
+// keep title in sync if user edits property name after upload (via start-over flow not needed here)
+propertyName.addEventListener('input', ()=>{ if(!screenActions.classList.contains('hidden')) { $('actTitle').textContent = propertyName.value.trim()||'Inspection Photos'; zipDirty=true; } });
+</script>
+</body>
+</html>

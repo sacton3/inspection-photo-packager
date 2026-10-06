@@ -1,0 +1,12 @@
+# Sample/test photos — not part of the site
+Samples/
+
+# The original unrelated editor
+PHOTOEDITOR.HTML
+
+# Generated output
+*.zip
+
+# OS cruft
+.DS_Store
+Thumbs.db
