@@ -7,6 +7,9 @@ PHOTOEDITOR.HTML
 # Generated output
 *.zip
 
+# Local dev tooling
+.claude/
+
 # OS cruft
 .DS_Store
 Thumbs.db

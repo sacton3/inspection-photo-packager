@@ -6,24 +6,27 @@
 <title>Inspection Photo Packager</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exifr/dist/full.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
-    --bg:#0f0f0f;
-    --tile:#1f1f1f;
-    --tile-2:#161616;
-    --ink:#f3f3f3;
-    --ink-soft:#a0a4a8;
-    --line:#3a3a3a;
-    --blue:#0a84ff;
-    --blue-dark:#0060df;
-    --green:#2ea043;
-    --green-dark:#238636;
-    --orange:#f0591f;
-    --orange-dark:#c2410c;
-    --amber:#ffb900;
-    --red:#ff453a;
-    --grey:#48484a;
-    --accent-soft:#10243a;
+    --bg:#0e1116;
+    --tile:#171b22;
+    --tile-2:#10141a;
+    --ink:#e6e9ef;
+    --ink-soft:#9aa3b2;
+    --line:#2a2f3a;
+    --blue:#2b7fff;
+    --blue-dark:#1e63cc;
+    --green:#22c55e;
+    --green-dark:#16a34a;
+    --orange:#f97316;
+    --orange-dark:#c2560c;
+    --amber:#f59e0b;
+    --red:#ef4444;
+    --grey:#3a414e;
+    --accent-soft:#16233a;
+    --tag-green:#39ff14;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html{color-scheme:dark;}
@@ -36,70 +39,86 @@
     min-height:100vh;
     -webkit-font-smoothing:antialiased;
   }
-  /* ---- Metro header ---- */
+  /* ---- Header ---- */
   .appbar{
-    background:var(--blue);
+    background:linear-gradient(135deg,var(--blue),var(--blue-dark));
     color:#fff;
     padding:18px 20px 16px;
   }
-  .appbar h1{
-    margin:0;
-    font-size:20px;
-    font-weight:600;
-    letter-spacing:.3px;
-  }
-  .appbar p{
-    margin:2px 0 0;
-    font-size:13px;
-    font-weight:300;
-    opacity:.9;
-  }
+  .appbar h1{margin:0;font-size:20px;font-weight:600;letter-spacing:.3px;}
+  .appbar p{margin:2px 0 0;font-size:13px;font-weight:300;opacity:.92;}
   .wrap{max-width:900px;margin:0 auto;padding:16px;}
 
-  /* ---- Generic tile/button ---- */
+  /* ---- Tiles / inputs ---- */
   .tile{background:var(--tile);border:1px solid var(--line);padding:16px;}
-  label.fld{display:block;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--ink-soft);margin-bottom:6px;}
-  input.txt{
+  label.fld{display:block;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--ink-soft);margin:14px 0 6px;}
+  label.fld:first-child{margin-top:0;}
+  input.txt, select.sel{
     width:100%;font-size:17px;padding:12px 12px;border:2px solid var(--line);
     background:var(--tile-2);color:var(--ink);outline:none;font-family:inherit;
   }
-  input.txt::placeholder{color:#6b6f73;}
-  input.txt:focus{border-color:var(--blue);}
+  input.txt::placeholder{color:#6b7280;}
+  input.txt:focus, select.sel:focus{border-color:var(--blue);}
+  select.sel{appearance:auto;}
 
+  /* ---- Buttons ---- */
   .btn{
     display:flex;align-items:center;justify-content:center;gap:10px;
     width:100%;border:none;color:#fff;font-family:inherit;font-size:17px;font-weight:600;
     padding:18px 16px;cursor:pointer;text-align:center;letter-spacing:.3px;
-    transition:filter .12s ease;
+    transition:filter .15s ease, transform .1s ease, background .15s ease;
   }
-  .btn:active{filter:brightness(.9);}
-  .btn[disabled]{opacity:.45;cursor:not-allowed;}
+  .btn:hover{filter:brightness(1.07);}
+  .btn:active{transform:scale(.97);filter:brightness(.92);}
+  .btn[disabled]{opacity:.45;cursor:not-allowed;transform:none;filter:none;}
   .btn .ic{font-size:22px;line-height:1;}
-  .b-blue{background:var(--blue);}   .b-blue:hover{background:var(--blue-dark);}
-  .b-green{background:var(--green);}  .b-green:hover{background:var(--green-dark);}
-  .b-orange{background:var(--orange);}.b-orange:hover{background:var(--orange-dark);}
+  .b-blue{background:var(--blue);}
+  .b-green{background:var(--green);}
+  .b-orange{background:var(--orange);}
   .b-grey{background:var(--grey);}
   .b-ghost{background:transparent;color:var(--blue);font-weight:600;border:2px solid var(--blue);}
-  .b-ghost:active{filter:none;background:rgba(0,120,215,.08);}
+  .b-ghost:hover{background:rgba(43,127,255,.10);filter:none;}
+  .mini-btn{
+    background:var(--tile-2);border:2px solid var(--line);color:var(--ink);
+    padding:9px 14px;font-family:inherit;font-weight:600;font-size:13px;cursor:pointer;
+    transition:all .15s ease;
+  }
+  .mini-btn:hover{border-color:var(--blue);}
+  .mini-btn:active{transform:scale(.96);}
 
   .hidden{display:none !important;}
+
+  /* ---- Toggle switch ---- */
+  .switch{display:flex;align-items:center;gap:10px;font-size:14.5px;color:var(--ink);cursor:pointer;margin:12px 0;}
+  .switch input{display:none;}
+  .switch .track{width:46px;height:26px;background:var(--line);position:relative;flex:0 0 auto;transition:background .18s ease;}
+  .switch .track::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;background:#fff;transition:left .18s ease;}
+  .switch input:checked + .track{background:var(--green);}
+  .switch input:checked + .track::after{left:23px;}
+
+  /* ---- Segmented control ---- */
+  .seg{display:inline-flex;border:2px solid var(--line);overflow:hidden;}
+  .seg button{
+    background:var(--tile-2);color:var(--ink);border:none;padding:9px 18px;
+    font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;transition:all .15s ease;
+  }
+  .seg button + button{border-left:2px solid var(--line);}
+  .seg button.active{background:var(--blue);color:#fff;}
 
   /* ---- Drop zone ---- */
   #dropZone{
     position:relative;border:3px dashed var(--line);background:var(--tile);
-    padding:48px 20px;text-align:center;cursor:pointer;transition:all .15s ease;
+    padding:44px 20px;text-align:center;cursor:pointer;transition:all .18s ease;
   }
-  #dropZone.drag{border-color:var(--blue);background:var(--accent-soft);}
+  #dropZone:hover{border-color:#3d4452;}
+  #dropZone.drag{border-color:var(--blue);background:var(--accent-soft);transform:scale(1.01);}
   #dropZone .big{font-size:46px;color:var(--blue);line-height:1;}
   #dropZone .t1{font-size:20px;font-weight:600;margin-top:14px;}
   #dropZone .t2{font-size:14px;color:var(--ink-soft);margin-top:6px;}
   #dropZone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;}
 
-  /* ---- Status / size pill ---- */
-  .statusbar{
-    display:flex;align-items:center;gap:12px;background:var(--tile);border:1px solid var(--line);
-    padding:14px 16px;margin-bottom:14px;
-  }
+  /* ---- Status pill ---- */
+  .statusbar{display:flex;align-items:center;gap:12px;background:var(--tile);border:1px solid var(--line);padding:14px 16px;margin-bottom:14px;}
   .statusbar .dot{width:12px;height:12px;flex:0 0 auto;background:var(--amber);}
   .statusbar.ok .dot{background:var(--green);}
   .statusbar.work .dot{background:var(--blue);animation:pulse 1s infinite;}
@@ -108,30 +127,37 @@
   .statusbar .st{font-size:14px;font-weight:600;}
   .statusbar .sub{font-size:12px;color:var(--ink-soft);}
 
-  /* ---- Thumbnail grid ---- */
+  /* ---- Thumbnails ---- */
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;margin-top:4px;}
-  .thumb{position:relative;aspect-ratio:1/1;background:#000;border:1px solid var(--line);overflow:hidden;cursor:pointer;}
+  .thumb{position:relative;aspect-ratio:1/1;background:#000;border:1px solid var(--line);overflow:hidden;cursor:pointer;animation:thumbIn .22s ease-out;transition:transform .12s ease;}
+  .thumb:hover{transform:scale(1.03);}
   .thumb img{width:100%;height:100%;object-fit:cover;display:block;}
-  .thumb .x{
-    position:absolute;top:0;right:0;width:26px;height:26px;background:rgba(0,0,0,.6);color:#fff;
-    border:none;font-size:16px;line-height:26px;cursor:pointer;
-  }
+  .thumb .x{position:absolute;top:0;right:0;width:26px;height:26px;background:rgba(0,0,0,.6);color:#fff;border:none;font-size:16px;line-height:26px;cursor:pointer;}
   .thumb .num{position:absolute;bottom:0;left:0;background:rgba(0,0,0,.6);color:#fff;font-size:11px;padding:1px 6px;}
-  .addtile{display:flex;align-items:center;justify-content:center;aspect-ratio:1/1;border:2px dashed var(--line);background:var(--tile);color:var(--blue);font-size:34px;cursor:pointer;position:relative;}
+  @keyframes thumbIn{from{opacity:0;transform:scale(.95);}to{opacity:1;transform:none;}}
+  .addtile{display:flex;align-items:center;justify-content:center;aspect-ratio:1/1;border:2px dashed var(--line);background:var(--tile);color:var(--blue);font-size:34px;cursor:pointer;position:relative;transition:all .15s ease;}
+  .addtile:hover{border-color:var(--blue);}
   .addtile input{position:absolute;inset:0;opacity:0;cursor:pointer;}
 
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-  .actions{display:flex;flex-direction:column;gap:10px;margin:16px 0;}
+  .actions{display:flex;flex-direction:column;gap:10px;margin:10px 0 0;}
   .section-h{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--ink-soft);margin:22px 2px 8px;}
+  .pdf-row{display:flex;gap:10px;align-items:stretch;}
+  .pdf-row .btn{flex:1;}
+  .pdf-row .seg{flex-shrink:0;}
+
+  /* ---- Screen transition ---- */
+  @keyframes screenIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+  .screen-in{animation:screenIn .2s ease-out;}
 
   /* ---- Editor ---- */
   #screenEditor{display:none;flex-direction:column;}
-  .ed-top{background:var(--blue);color:#fff;display:flex;align-items:center;gap:12px;padding:12px 14px;}
-  .ed-top .b-back{background:rgba(255,255,255,.18);border:none;color:#fff;font-size:15px;font-weight:600;padding:9px 14px;cursor:pointer;display:flex;align-items:center;gap:6px;}
-  .ed-top .b-back:active{background:rgba(255,255,255,.3);}
+  .ed-top{background:linear-gradient(135deg,var(--blue),var(--blue-dark));color:#fff;display:flex;align-items:center;gap:12px;padding:12px 14px;}
+  .ed-top .b-back{background:rgba(255,255,255,.18);border:none;color:#fff;font-size:15px;font-weight:600;padding:9px 14px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .12s ease;}
+  .ed-top .b-back:active{background:rgba(255,255,255,.32);transform:scale(.96);}
   .ed-top .pos{font-size:14px;font-weight:600;margin-left:auto;}
-  .ed-nav{background:rgba(255,255,255,.18);border:none;color:#fff;width:40px;height:38px;font-size:20px;cursor:pointer;}
-  .ed-nav:active{background:rgba(255,255,255,.3);}
+  .ed-nav{background:rgba(255,255,255,.18);border:none;color:#fff;width:40px;height:38px;font-size:20px;cursor:pointer;transition:all .12s ease;}
+  .ed-nav:active{background:rgba(255,255,255,.32);transform:scale(.94);}
   .ed-nav[disabled]{opacity:.35;}
 
   .canvas-stage{background:#000;display:flex;align-items:center;justify-content:center;padding:10px;}
@@ -139,21 +165,19 @@
 
   .ctrl{background:var(--tile);border-top:1px solid var(--line);padding:14px 16px;}
   .tool-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
-  .tool{
-    flex:1 1 auto;min-width:64px;border:2px solid var(--line);background:var(--tile-2);color:var(--ink);
-    font-family:inherit;font-size:13px;font-weight:600;padding:10px 6px;cursor:pointer;display:flex;
-    flex-direction:column;align-items:center;gap:3px;
-  }
+  .tool{flex:1 1 auto;min-width:64px;border:2px solid var(--line);background:var(--tile-2);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;padding:10px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;transition:all .14s ease;}
+  .tool:active{transform:scale(.95);}
   .tool .ti{font-size:18px;line-height:1;}
   .tool.active{border-color:var(--blue);background:var(--accent-soft);color:#fff;}
 
   .swatches{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;}
-  .sw{width:30px;height:30px;border:3px solid var(--tile);outline:1px solid var(--line);cursor:pointer;}
+  .sw{width:30px;height:30px;border:3px solid var(--tile);outline:1px solid var(--line);cursor:pointer;transition:transform .12s ease;}
+  .sw:active{transform:scale(.9);}
   .sw.active{outline:3px solid var(--ink);}
 
   .slider-grp{margin:10px 0;}
   .slider-grp .lbl{display:flex;justify-content:space-between;font-size:13px;font-weight:600;color:var(--ink-soft);margin-bottom:4px;}
-  .slider-grp .val{color:var(--blue-dark);}
+  .slider-grp .val{color:var(--blue);}
   input[type=range]{width:100%;appearance:none;-webkit-appearance:none;height:6px;background:var(--line);outline:none;}
   input[type=range]::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:24px;height:24px;background:var(--blue);cursor:pointer;border-radius:0;}
   input[type=range]::-moz-range-thumb{width:24px;height:24px;background:var(--blue);cursor:pointer;border:none;border-radius:0;}
@@ -162,20 +186,78 @@
   .ed-foot .btn{padding:12px;font-size:15px;}
   .tiny{font-size:12px;color:var(--ink-soft);text-align:center;margin-top:2px;}
   .hint{font-size:12px;color:var(--ink-soft);margin-top:-4px;margin-bottom:10px;}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation:none !important;transition:none !important;}
+  }
 </style>
 </head>
 <body>
 
-<!-- ============ SCREEN 1: UPLOAD ============ -->
+<!-- ============ SCREEN 1: SETUP / UPLOAD ============ -->
 <div id="screenUpload">
   <div class="appbar">
     <h1>Inspection Photo Packager</h1>
-    <p>Compress a batch of photos into one emailable ZIP (under 25&nbsp;MB)</p>
+    <p>Fill in the job details, then drop your photos</p>
   </div>
   <div class="wrap">
     <div class="tile" style="margin-bottom:14px;">
-      <label class="fld" for="propertyName">Property Name</label>
-      <input class="txt" id="propertyName" type="text" placeholder="e.g. 1420 Oak Street — Unit 3B" autocomplete="off">
+
+      <label class="fld" for="inspType">Inspection Type</label>
+      <select class="sel" id="inspType">
+        <option value="">Select inspection type…</option>
+        <option>Move-In Inspection</option>
+        <option>Move-Out Inspection</option>
+        <option>Bank Inspection</option>
+        <option>Water Walk Inspection</option>
+        <option>Radon Inspection</option>
+        <option>Home Inspection</option>
+        <option>Pest Inspection</option>
+        <option>Mold Inspection</option>
+        <option>Turnover Inspection</option>
+        <option>Routine Maintenance Inspection</option>
+        <option>Roof Inspection</option>
+        <option>Plumbing Inspection</option>
+        <option value="__custom">Custom…</option>
+      </select>
+      <input class="txt hidden" id="inspTypeCustom" type="text" placeholder="Enter inspection type" style="margin-top:8px;" autocomplete="off">
+
+      <label class="fld" for="address">Address</label>
+      <select class="sel" id="address">
+        <option value="">Select address…</option>
+        <!-- address options injected by JS -->
+      </select>
+      <input class="txt hidden" id="addressCustom" type="text" placeholder="Enter address" style="margin-top:8px;" autocomplete="off">
+
+      <div id="aptWrap" class="hidden">
+        <label class="fld" for="apt">APT #</label>
+        <select class="sel" id="apt">
+          <option value="">—</option>
+          <option>1</option><option>2</option><option>3</option><option>4</option>
+          <option>5</option><option>6</option><option>7</option><option>8</option>
+        </select>
+      </div>
+
+      <label class="fld" style="margin-top:18px;">Photo Tags</label>
+      <label class="switch"><input type="checkbox" id="stampType" checked><span class="track"></span> Stamp inspection type on photos</label>
+      <label class="switch"><input type="checkbox" id="stampAddress" checked><span class="track"></span> Stamp address on photos</label>
+      <label class="switch"><input type="checkbox" id="stampDate" checked><span class="track"></span> Stamp date on photos</label>
+
+      <div id="dateOpts">
+        <label class="fld" for="dateFmtSeg">Date format</label>
+        <div class="seg" id="dateFmtSeg">
+          <button type="button" data-fmt="date" class="active">Date</button>
+          <button type="button" data-fmt="datetime">Date &amp; Time</button>
+        </div>
+        <div style="margin-top:12px;">
+          <button class="mini-btn" id="btnOverride">Override date…</button>
+          <div id="overrideWrap" class="hidden" style="margin-top:10px;display:flex;gap:8px;align-items:center;">
+            <input type="date" id="overrideDate" class="txt" style="flex:1;">
+            <button class="mini-btn" id="btnClearOverride">Clear</button>
+          </div>
+          <p class="tiny" style="text-align:left;margin-top:6px;">Date comes from each photo's metadata. Use Override to force one date on every photo.</p>
+        </div>
+      </div>
     </div>
 
     <div id="dropZone">
@@ -184,6 +266,11 @@
       <div class="t1">Drag &amp; drop your photos</div>
       <div class="t2">…or tap to choose from your device</div>
     </div>
+
+    <div id="continueRow" class="hidden" style="margin-top:14px;">
+      <button class="btn b-blue" id="btnContinue"><span class="ic">▶</span> Continue to Photos (<span id="uplCount">0</span>)</button>
+    </div>
+
     <p class="tiny" style="margin-top:12px;">Photos stay on your device. Nothing is uploaded to a server.</p>
   </div>
 </div>
@@ -204,19 +291,34 @@
       </div>
     </div>
 
-    <div class="actions">
-      <button class="btn b-blue"   id="btnDownload" disabled><span class="ic">⬇</span> Download ZIP</button>
-      <div class="row2">
-        <button class="btn b-green"  id="btnEmail" disabled><span class="ic">✉</span> Email</button>
-        <button class="btn b-orange" id="btnEdit"><span class="ic">✎</span> Edit Photos</button>
+    <div class="section-h">Images (ZIP)</div>
+    <div class="row2">
+      <button class="btn b-blue" id="btnDownload" disabled><span class="ic">⬇</span> Download</button>
+      <button class="btn b-green" id="btnEmail" disabled><span class="ic">✉</span> Download &amp; Email</button>
+    </div>
+
+    <div class="section-h">PDF</div>
+    <div style="display:flex;justify-content:center;margin-bottom:10px;">
+      <div class="seg" id="pdfOrient">
+        <button type="button" data-o="landscape" class="active">Landscape</button>
+        <button type="button" data-o="portrait">Portrait</button>
       </div>
+    </div>
+    <div class="row2">
+      <button class="btn b-blue" id="btnPDF"><span class="ic">📄</span> Download</button>
+      <button class="btn b-green" id="btnPDFEmail"><span class="ic">📧</span> Download &amp; Email</button>
+    </div>
+
+    <div style="margin-top:12px;">
+      <button class="btn b-orange" id="btnEdit" style="width:100%;"><span class="ic">✎</span> Edit Photos</button>
     </div>
 
     <div class="section-h">Photos (<span id="photoCount">0</span>)</div>
     <div class="grid" id="thumbGrid"></div>
 
     <div style="margin-top:22px;display:flex;gap:10px;">
-      <button class="btn b-ghost" id="btnStartOver" style="font-size:15px;padding:12px;">Start Over</button>
+      <button class="btn b-ghost" id="btnJobDetails" style="font-size:15px;padding:12px;flex:1;">✎ Job Details</button>
+      <button class="btn b-ghost" id="btnStartOver" style="font-size:15px;padding:12px;flex:1;">Start Over</button>
     </div>
   </div>
 </div>
@@ -268,17 +370,44 @@
 
 <script>
 /* =======================================================================
-   Inspection Photo Packager  — single-file app
+   Inspection Photo Packager — single-file app
    ======================================================================= */
 
 const TARGET_BYTES = 24 * 1024 * 1024;   // aim under 25MB with headroom
 const SWATCH_COLORS = ['#e81123','#ffb900','#107c10','#0078d7','#ffffff','#000000'];
+const TAG_FONT = 'Arial, "Helvetica Neue", Helvetica, sans-serif';  // tags + annotation text
 
-let photos = [];          // see makePhoto()
+// PC property addresses (from PC Addresses.txt), in file order.
+const PC_ADDRESSES = [
+  "7101 Yorktown Rd","7103 Yorktown Rd","7105 Yorktown Rd","7106 Yorktown Rd","7107 Yorktown Rd",
+  "7108 Yorktown Rd","7109 Yorktown Rd","7110 Yorktown Rd","7112 Yorktown Rd","7308 Yorktown Rd",
+  "7313 Yorktown Rd","7333 Yorktown Rd","7335 Yorktown Rd","7400 Yorktown Rd","7401 Yorktown Rd","7403 Yorktown Rd",
+  "7113 Yorktown Ter","7115 Yorktown Ter","7117 Yorktown Ter","7119 Yorktown Ter","7121 Yorktown Ter","7123 Yorktown Ter",
+  "7401 Yorktown Ter","7403 Yorktown Ter","7405 Yorktown Ter","7407 Yorktown Ter","7409 Yorktown Ter","7411 Yorktown Ter",
+  "7413 Yorktown Ter","7415 Yorktown Ter","7417 Yorktown Ter",
+  "7212 Yorktown Ct","7214 Yorktown Ct","7301 Yorktown Ct","7302 Yorktown Ct","7303 Yorktown Ct","7304 Yorktown Ct",
+  "7400 Patrick Henry Rd","7402 Patrick Henry Rd","7404 Patrick Henry Rd",
+  "7201 Patrick Henry Ct","7202 Patrick Henry Ct","7203 Patrick Henry Ct","7204 Patrick Henry Ct","7205 Patrick Henry Ct",
+  "7206 Patrick Henry Ct","7207 Patrick Henry Ct","7208 Patrick Henry Ct","7500 Patrick Henry Ct","7502 Patrick Henry Ct",
+  "7500 Outer Loop","7502 Outer Loop","7504 Outer Loop","7506 Outer Loop",
+  "7102 National Tpke","7104 National Tpke","7340 National Tpke","7342 National Tpke",
+  "7202 Old Glory Ct","7203 Old Glory Ct","7204 Old Glory Ct","7205 Old Glory Ct","7206 Old Glory Ct","7207 Old Glory Ct",
+  "7208 Old Glory Ct","7209 Old Glory Ct","7210 Old Glory Ct","7211 Old Glory Ct","7213 Old Glory Ct","7215 Old Glory Ct",
+  "7217 Old Glory Ct","7219 Old Glory Ct","7301 Old Glory Ct","7302 Old Glory Ct","7303 Old Glory Ct","7304 Old Glory Ct",
+  "7305 Old Glory Ct","7306 Old Glory Ct","7332 Old Glory Ct","7334 Old Glory Ct",
+  "7300 Garrison Rd","7301 Garrison Rd","7302 Garrison Rd","7303 Garrison Rd","7304 Garrison Rd","7305 Garrison Rd",
+  "7306 Garrison Rd","7307 Garrison Rd","7308 Garrison Rd","7309 Garrison Rd"
+];
+
+let photos = [];
 let editIndex = 0;
-let zipBlob = null;       // cached result
-let zipDirty = true;      // needs (re)compression
+let zipBlob = null;
+let zipDirty = true;
 let lastZipSize = 0;
+
+let dateFmt = 'date';          // 'date' | 'datetime'
+let overrideDateVal = null;    // Date or null
+let pdfOrient = 'landscape';   // 'landscape' | 'portrait'
 
 // editor interaction state
 let tool = 'move';
@@ -290,20 +419,88 @@ let dragState = null;
 const $ = id => document.getElementById(id);
 const screenUpload = $('screenUpload'), screenActions = $('screenActions'), screenEditor = $('screenEditor');
 const dropZone = $('dropZone'), fileInput = $('fileInput');
-const propertyName = $('propertyName');
 const thumbGrid = $('thumbGrid');
 const statusbar = $('statusbar'), statusText = $('statusText'), statusSub = $('statusSub');
 const btnDownload = $('btnDownload'), btnEmail = $('btnEmail'), btnEdit = $('btnEdit'), btnStartOver = $('btnStartOver');
 const edCanvas = $('edCanvas'), edCtx = edCanvas.getContext('2d');
+const SAN = s => s.replace(/[\\/:*?"<>|]/g,'_');
+
+/* ---------- build address dropdown (grouped by street) ---------- */
+(function buildAddressOptions(){
+  const sel = $('address');
+  const groups = {}, order = [];
+  PC_ADDRESSES.forEach(a=>{
+    const street = a.slice(a.indexOf(' ')+1);
+    if(!groups[street]){ groups[street]=[]; order.push(street); }
+    groups[street].push(a);
+  });
+  order.forEach(street=>{
+    const og = document.createElement('optgroup');
+    og.label = street;
+    groups[street].forEach(a=>{
+      const o = document.createElement('option');
+      o.value = a; o.textContent = a;
+      og.appendChild(o);
+    });
+    sel.appendChild(og);
+  });
+  const c = document.createElement('option');
+  c.value = '__custom'; c.textContent = 'Custom address…';
+  sel.appendChild(c);
+})();
+
+/* ---------- job detail getters ---------- */
+function getInspectionType(){
+  const v = $('inspType').value;
+  return v==='__custom' ? $('inspTypeCustom').value.trim() : (v||'');
+}
+function getAddressText(){
+  const v = $('address').value;
+  return v==='__custom' ? $('addressCustom').value.trim() : (v||'');
+}
+function isListedAddress(){ const v=$('address').value; return !!v && v!=='__custom'; }
+function getApt(){ return isListedAddress() ? ($('apt').value||'') : ''; }
+function addressTagText(){
+  const a = getAddressText(); if(!a) return '';
+  const apt = getApt();
+  return apt ? `${a} APT# ${apt}` : a;
+}
+function getJobBaseName(){
+  const a = addressTagText(), t = getInspectionType();
+  if(a && t) return `${a} - ${t}`;
+  return a || t || 'Inspection Photos';
+}
+function stampAddrOn(){ return $('stampAddress').checked; }
+function stampDateOn(){ return $('stampDate').checked; }
+function stampTypeOn(){ return $('stampType').checked; }
+
+/* ---------- date helpers ---------- */
+function photoDate(p){
+  if(overrideDateVal) return overrideDateVal;
+  if(p.exifDate) return p.exifDate;
+  if(p.file && p.file.lastModified) return new Date(p.file.lastModified);
+  return null;
+}
+function formatDate(d, withTime){
+  if(!(d instanceof Date) || isNaN(d)) return '';
+  let s = `${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()}`;
+  if(withTime){
+    let h=d.getHours(), m=d.getMinutes(), ap=h>=12?'PM':'AM';
+    h = h%12 || 12;
+    s += ` ${h}:${String(m).padStart(2,'0')} ${ap}`;
+  }
+  return s;
+}
 
 /* ---------- data model ---------- */
 function makePhoto(file, img){
   return {
     id: Math.random().toString(36).slice(2),
-    file, img,                      // HTMLImageElement of the original
+    file, img,
+    exifDate: null,
     brightness:100, contrast:100,
     zoom:1, panX:0.5, panY:0.5,
-    annotations:[],                 // {type,x,y,w,h,color,text}
+    annotations:[],
     thumb:null
   };
 }
@@ -317,15 +514,29 @@ fileInput.addEventListener('change', e=>addFiles(e.target.files));
 function addFiles(fileList){
   const imgs = Array.from(fileList).filter(f=>f.type.startsWith('image/'));
   if(!imgs.length) return;
+  const slots = new Array(imgs.length).fill(null); // keep original selection order
   let pending = imgs.length;
-  imgs.forEach(file=>{
+  const done = ()=>{
+    if(--pending===0){
+      slots.forEach(p=>{ if(p) photos.push(p); });
+      afterAdd();
+    }
+  };
+
+  imgs.forEach((file, idx)=>{
     const img = new Image();
     img.onload = ()=>{
       const p = makePhoto(file, img);
-      photos.push(p);
-      renderThumb(p).then(()=>{ if(--pending===0) afterAdd(); });
+      slots[idx] = p;
+      const finish = ()=> renderThumb(p).then(done);
+      if(window.exifr){
+        exifr.parse(file).then(m=>{
+          const d = m && (m.DateTimeOriginal || m.CreateDate || m.ModifyDate);
+          p.exifDate = d ? new Date(d) : null;
+        }).catch(()=>{}).finally(finish);
+      } else finish();
     };
-    img.onerror = ()=>{ if(--pending===0) afterAdd(); };
+    img.onerror = done;   // e.g. unreadable HEIC — skip gracefully
     img.src = URL.createObjectURL(file);
   });
 }
@@ -340,25 +551,29 @@ function afterAdd(){
 
 /* ======================= SCREEN SWITCHING ======================= */
 function show(screen){
-  screenUpload.classList.add('hidden');
-  screenActions.classList.add('hidden');
+  [screenUpload, screenActions].forEach(s=>s.classList.add('hidden'));
   screenEditor.style.display='none';
   if(screen===screenEditor){ screen.style.display='flex'; }
   else screen.classList.remove('hidden');
+  screen.classList.remove('screen-in'); void screen.offsetWidth; screen.classList.add('screen-in');
   window.scrollTo(0,0);
 }
 function goActions(){
   show(screenActions);
-  const name = propertyName.value.trim();
-  $('actTitle').textContent = name ? name : 'Inspection Photos';
+  $('actTitle').textContent = getJobBaseName();
   $('actSub').textContent = `${photos.length} photo${photos.length!==1?'s':''}`;
   $('photoCount').textContent = photos.length;
+}
+function goUpload(){
+  show(screenUpload);
+  $('continueRow').classList.toggle('hidden', photos.length===0);
+  $('uplCount').textContent = photos.length;
 }
 
 /* ======================= THUMBNAILS ======================= */
 function renderThumb(p){
   return new Promise(res=>{
-    const c = renderPhoto(p, 220);
+    const c = renderPhoto(p, 240);
     p.thumb = c.toDataURL('image/jpeg', 0.8);
     res();
   });
@@ -373,7 +588,6 @@ function buildThumbGrid(){
     d.querySelector('.x').addEventListener('click', e=>{e.stopPropagation();removePhoto(p.id);});
     thumbGrid.appendChild(d);
   });
-  // add tile
   const add = document.createElement('label');
   add.className='addtile';
   add.innerHTML = `+<input type="file" multiple accept="image/*">`;
@@ -389,9 +603,7 @@ function removePhoto(id){
   prepareZip();
 }
 
-/* ======================= RENDER A PHOTO (edits + annotations baked) =======================
-   Produces a canvas whose longest side <= maxDim, aspect = original aspect.
-   Zoom = centered crop; pan selects which part is visible.                                   */
+/* ======================= RENDER A PHOTO (edits + annotations + tags baked) ======================= */
 function renderPhoto(p, maxDim){
   const img = p.img;
   const iw = img.naturalWidth, ih = img.naturalHeight;
@@ -406,7 +618,6 @@ function renderPhoto(p, maxDim){
   ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
   ctx.fillStyle='#000'; ctx.fillRect(0,0,ow,oh);
 
-  // visible source region from zoom/pan
   const visW = iw / p.zoom, visH = ih / p.zoom;
   const sx = p.panX * (iw - visW);
   const sy = p.panY * (ih - visH);
@@ -416,7 +627,47 @@ function renderPhoto(p, maxDim){
   ctx.filter='none';
 
   drawAnnotations(ctx, p, ow, oh, null);
+  drawTags(ctx, p, ow, oh);
   return c;
+}
+
+/* ---------- photo tags: inspection type (yellow) over address (green) bottom-left; date (green) bottom-right ---------- */
+function drawTags(ctx, p, W, H){
+  const addrOn = stampAddrOn(), dateOn = stampDateOn(), typeOn = stampTypeOn();
+  if(!addrOn && !dateOn && !typeOn) return;
+  const pad = Math.max(6, Math.round(W*0.014));
+  const fs  = Math.max(11, Math.round(W*0.022));   // address / date size (normal weight)
+  const typeFs = Math.max(9, Math.round(fs*0.8));  // inspection type (smaller)
+  const GREEN = '#39ff14', YELLOW = '#ffdd00';
+
+  ctx.save();
+  ctx.textBaseline = 'bottom';
+  ctx.lineJoin = 'round';
+  ctx.shadowColor = 'rgba(0,0,0,0.5)';
+  ctx.shadowBlur = Math.max(1.2, fs*0.1);
+
+  function line(text, x, yy, size, color, align){
+    ctx.font = `${size}px ${TAG_FONT}`;          // non-bold
+    ctx.textAlign = align;
+    ctx.lineWidth = Math.max(1, size*0.07);      // thin outline for legibility
+    ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+    ctx.strokeText(text, x, yy);
+    ctx.fillStyle = color;
+    ctx.fillText(text, x, yy);
+  }
+
+  const y = H - pad;
+  const addr = addrOn ? addressTagText() : '';
+  const type = typeOn ? getInspectionType() : '';
+  let baseY = y;
+  if(addr){ line(addr, pad, baseY, fs, GREEN, 'left'); baseY -= Math.round(fs*1.18); }
+  if(type){ line(type, pad, baseY, typeFs, YELLOW, 'left'); }
+  if(dateOn){
+    const d = photoDate(p);
+    const t = d ? formatDate(d, dateFmt==='datetime') : '';
+    if(t) line(t, W-pad, y, fs, GREEN, 'right');
+  }
+  ctx.restore();
 }
 
 function drawAnnotations(ctx, p, W, H, selected){
@@ -433,16 +684,14 @@ function drawAnnotations(ctx, p, W, H, selected){
       ctx.stroke();
     } else if(a.type==='text'){
       const fs = Math.max(12, a.h*H);
-      ctx.font = `bold ${fs}px "Segoe UI",Arial,sans-serif`;
+      ctx.font = `bold ${fs}px ${TAG_FONT}`;
       ctx.textBaseline='top';
-      // readability outline
-      ctx.lineWidth = Math.max(2, fs*0.12);
+      ctx.lineWidth = Math.max(1.5, fs*0.08);
       ctx.strokeStyle = (a.color.toLowerCase()==='#ffffff'||a.color.toLowerCase()==='#ffb900') ? '#000' : '#fff';
       ctx.strokeText(a.text, a.x*W, a.y*H);
       ctx.fillStyle = a.color;
       ctx.fillText(a.text, a.x*W, a.y*H);
     }
-    // selection outline (editor only)
     if(selected && a===selected){
       const b = annoBounds(a, W, H, ctx);
       ctx.save();
@@ -458,7 +707,7 @@ function drawAnnotations(ctx, p, W, H, selected){
 function annoBounds(a, W, H, ctx){
   if(a.type==='text'){
     const fs = Math.max(12, a.h*H);
-    if(ctx){ ctx.font = `bold ${fs}px "Segoe UI",Arial,sans-serif`; }
+    if(ctx){ ctx.font = `bold ${fs}px ${TAG_FONT}`; }
     const tw = ctx ? ctx.measureText(a.text).width : a.text.length*fs*0.55;
     return {x:a.x*W, y:a.y*H, w:tw, h:fs};
   }
@@ -467,13 +716,7 @@ function annoBounds(a, W, H, ctx){
 }
 
 /* ======================= ZIP / COMPRESSION ======================= */
-function zipBaseName(){
-  const name = propertyName.value.trim() || 'Property';
-  return `${name} - Inspection Photos`;
-}
-function canvasToBlob(c, q){
-  return new Promise(res=>c.toBlob(res, 'image/jpeg', q));
-}
+function canvasToBlob(c, q){ return new Promise(res=>c.toBlob(res, 'image/jpeg', q)); }
 
 async function prepareZip(){
   zipDirty = true;
@@ -491,47 +734,35 @@ async function prepareZip(){
   }
 }
 
-// Iteratively lower quality, then dimensions, until total <= TARGET_BYTES
 async function buildZip(){
   const attempts = [
-    {maxDim:2000, q:0.82},
-    {maxDim:2000, q:0.70},
-    {maxDim:1600, q:0.70},
-    {maxDim:1600, q:0.58},
-    {maxDim:1280, q:0.60},
-    {maxDim:1280, q:0.48},
-    {maxDim:1024, q:0.55},
-    {maxDim:1024, q:0.42},
-    {maxDim:800,  q:0.50},
-    {maxDim:800,  q:0.38},
+    {maxDim:2000, q:0.82},{maxDim:2000, q:0.70},
+    {maxDim:1600, q:0.70},{maxDim:1600, q:0.58},
+    {maxDim:1280, q:0.60},{maxDim:1280, q:0.48},
+    {maxDim:1024, q:0.55},{maxDim:1024, q:0.42},
+    {maxDim:800,  q:0.50},{maxDim:800,  q:0.38},
     {maxDim:640,  q:0.40},
   ];
-  let chosen = null, blobs = null;
+  let blobs = null;
   for(let i=0;i<attempts.length;i++){
     const a = attempts[i];
     setStatus('work','Compressing…',`Quality pass ${i+1} (max ${a.maxDim}px)`);
-    const result = [];
-    let total = 0;
+    const result = []; let total = 0;
     for(const p of photos){
       const c = renderPhoto(p, a.maxDim);
       const b = await canvasToBlob(c, a.q);
-      result.push(b);
-      total += b.size;
-      await new Promise(r=>setTimeout(r,0)); // yield so UI updates
+      result.push(b); total += b.size;
+      await new Promise(r=>setTimeout(r,0));
     }
-    if(total <= TARGET_BYTES || i===attempts.length-1){
-      chosen = a; blobs = result;
-      break;
-    }
+    if(total <= TARGET_BYTES || i===attempts.length-1){ blobs = result; break; }
   }
-  // assemble zip (store level 0 — JPEGs are already compressed)
   setStatus('work','Packaging…','Creating the ZIP file');
   const zip = new JSZip();
-  const base = zipBaseName();
+  const base = SAN(getJobBaseName());
   const pad = String(photos.length).length;
   blobs.forEach((b,i)=>{
     const n = String(i+1).padStart(pad,'0');
-    zip.file(`${base.replace(/[\\/:*?"<>|]/g,'_')}_${n}.jpg`, b);
+    zip.file(`${base}_${n}.jpg`, b);
   });
   const out = await zip.generateAsync({type:'blob', compression:'STORE'});
   return {blob: out, size: out.size};
@@ -542,80 +773,129 @@ function setStatus(kind, text, sub){
   statusText.textContent = text;
   statusSub.textContent = sub;
 }
+async function ensureZip(){ if(zipDirty || !zipBlob) await prepareZip(); return zipBlob; }
 
-async function ensureZip(){
-  if(zipDirty || !zipBlob) await prepareZip();
-  return zipBlob;
-}
-
-/* ---------- Download ---------- */
+/* ---------- Download ZIP ---------- */
 btnDownload.addEventListener('click', async ()=>{
   const blob = await ensureZip();
-  if(blob) saveAs(blob, zipBaseName().replace(/[\\/:*?"<>|]/g,'_') + '.zip');
+  if(blob) saveAs(blob, SAN(getJobBaseName()) + '.zip');
 });
 
-/* ---------- Email (Web Share with file, fallback to mailto) ---------- */
+/* ---------- share / email helper (used by both ZIP and PDF) ---------- */
+async function shareOrMail(blob, fname, mime){
+  const base = getJobBaseName();
+  const file = new File([blob], fname, {type:mime});
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{
+      await navigator.share({ files:[file], title: base, text: `${base}\n\nPlease find the inspection photos attached.` });
+      return;
+    }catch(err){ if(err && err.name==='AbortError') return; }
+  }
+  const subject = encodeURIComponent(base);
+  const body = encodeURIComponent(`Please find the inspection photos attached.\n\n(The file "${fname}" was just downloaded — attach it to this email.)`);
+  setTimeout(()=>{ window.location.href = `mailto:?subject=${subject}&body=${body}`; }, 400);
+}
+
+/* ---------- Download & Email images ---------- */
 btnEmail.addEventListener('click', async ()=>{
   const blob = await ensureZip();
   if(!blob) return;
-  const base = zipBaseName();
-  const fname = base.replace(/[\\/:*?"<>|]/g,'_') + '.zip';
-  const file = new File([blob], fname, {type:'application/zip'});
-
-  if(navigator.canShare && navigator.canShare({files:[file]})){
-    try{
-      await navigator.share({
-        files:[file],
-        title: base,
-        text: `${base}\n\nPlease find the inspection photos attached.`
-      });
-      return;
-    }catch(err){
-      if(err && err.name==='AbortError') return; // user cancelled
-      console.warn('Share failed, falling back to mailto', err);
-    }
-  }
-  // Fallback: download the zip + open a pre-filled email for manual attach
+  const fname = SAN(getJobBaseName()) + '.zip';
   saveAs(blob, fname);
-  const subject = encodeURIComponent(base);
-  const body = encodeURIComponent(
-    `Please find the inspection photos attached.\n\n`+
-    `(The ZIP "${fname}" was just downloaded — attach it to this email.)`
-  );
-  setTimeout(()=>{ window.location.href = `mailto:?subject=${subject}&body=${body}`; }, 400);
+  await shareOrMail(blob, fname, 'application/zip');
 });
 
+/* ---------- PDF export ---------- */
+$('pdfOrient').querySelectorAll('button').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    $('pdfOrient').querySelectorAll('button').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active'); pdfOrient = b.dataset.o;
+  });
+});
+
+async function buildPdfBlob(orientation){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({orientation, unit:'pt', format:'letter'});
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 36, capGap = 16;
+  for(let i=0;i<photos.length;i++){
+    const p = photos[i];
+    if(i>0) doc.addPage('letter', orientation);
+    const cap = [getInspectionType(), addressTagText(), formatDate(photoDate(p), dateFmt==='datetime')]
+                  .filter(Boolean).join('  ·  ') || 'Inspection Photo';
+    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(30);
+    doc.text(cap, margin, margin, {baseline:'top'});
+    const canvas = renderPhoto(p, 1600);
+    const dataURL = canvas.toDataURL('image/jpeg', 0.72);
+    const availW = pageW - margin*2;
+    const topY = margin + capGap + 8;
+    const availH = pageH - topY - margin;
+    const ar = canvas.width / canvas.height;
+    let w = availW, h = w/ar;
+    if(h > availH){ h = availH; w = h*ar; }
+    doc.addImage(dataURL, 'JPEG', (pageW-w)/2, topY, w, h);
+    await new Promise(r=>setTimeout(r,0));
+  }
+  return doc.output('blob');
+}
+
+async function withPdfBtn(btn, fn){
+  if(!photos.length) return;
+  const label = btn.innerHTML;
+  btn.disabled = true; btn.innerHTML = 'Building PDF…';
+  try{ await fn(); }
+  catch(err){ console.error(err); alert('Sorry — the PDF could not be generated.'); }
+  finally{ btn.disabled = false; btn.innerHTML = label; }
+}
+
+$('btnPDF').addEventListener('click', ()=> withPdfBtn($('btnPDF'), async ()=>{
+  const blob = await buildPdfBlob(pdfOrient);
+  saveAs(blob, SAN(getJobBaseName()) + '.pdf');
+}));
+$('btnPDFEmail').addEventListener('click', ()=> withPdfBtn($('btnPDFEmail'), async ()=>{
+  const blob = await buildPdfBlob(pdfOrient);
+  const fname = SAN(getJobBaseName()) + '.pdf';
+  saveAs(blob, fname);
+  await shareOrMail(blob, fname, 'application/pdf');
+}));
+
+/* ---------- navigation between setup/actions ---------- */
 btnStartOver.addEventListener('click', ()=>{ if(confirm('Clear all photos and start over?')) resetApp(); });
+$('btnJobDetails').addEventListener('click', goUpload);
+$('btnContinue').addEventListener('click', async ()=>{
+  goActions();
+  for(const p of photos){ await renderThumb(p); }
+  buildThumbGrid();
+  zipDirty = true; prepareZip();
+});
+
 function resetApp(){
   photos=[]; zipBlob=null; zipDirty=true; thumbGrid.innerHTML='';
   fileInput.value='';
-  show(screenUpload);
+  goUpload();
 }
 
 /* ======================= EDITOR ======================= */
 btnEdit.addEventListener('click', ()=>{ if(photos.length) openEditor(0); });
 
 function openEditor(i){
-  editIndex = i;
-  selectedAnno = null;
+  editIndex = i; selectedAnno = null;
   show(screenEditor);
   loadEditorPhoto();
 }
-
 function loadEditorPhoto(){
   const p = photos[editIndex];
   $('edPos').textContent = `${editIndex+1} / ${photos.length}`;
   $('btnPrev').disabled = editIndex===0;
   $('btnNext').disabled = editIndex===photos.length-1;
-  $('zoom').value = p.zoom;       $('zoomVal').textContent = p.zoom.toFixed(1)+'×';
-  $('brightness').value = p.brightness; $('briVal').textContent = p.brightness+'%';
-  $('contrast').value = p.contrast;     $('conVal').textContent = p.contrast+'%';
+  $('zoom').value = p.zoom;              $('zoomVal').textContent = p.zoom.toFixed(1)+'×';
+  $('brightness').value = p.brightness;  $('briVal').textContent = p.brightness+'%';
+  $('contrast').value = p.contrast;      $('conVal').textContent = p.contrast+'%';
   selectedAnno = null;
   sizeEditorCanvas();
   drawEditor();
 }
-
-// size the display canvas to fit the stage while keeping image aspect
 function sizeEditorCanvas(){
   const p = photos[editIndex];
   const aspect = p.img.naturalWidth / p.img.naturalHeight;
@@ -630,7 +910,6 @@ function sizeEditorCanvas(){
   edCanvas.width = Math.round(w*dpr);
   edCanvas.height = Math.round(h*dpr);
 }
-
 function drawEditor(){
   const p = photos[editIndex];
   const W = edCanvas.width, H = edCanvas.height;
@@ -638,28 +917,19 @@ function drawEditor(){
   const iw = img.naturalWidth, ih = img.naturalHeight;
   edCtx.setTransform(1,0,0,1,0,0);
   edCtx.fillStyle='#000'; edCtx.fillRect(0,0,W,H);
-
   const visW = iw / p.zoom, visH = ih / p.zoom;
   const sx = p.panX*(iw-visW), sy = p.panY*(ih-visH);
   edCtx.filter = `brightness(${p.brightness}%) contrast(${p.contrast}%)`;
   edCtx.drawImage(img, sx, sy, visW, visH, 0, 0, W, H);
   edCtx.filter='none';
   drawAnnotations(edCtx, p, W, H, selectedAnno);
+  drawTags(edCtx, p, W, H);
 }
 
 /* ---- sliders ---- */
-$('zoom').addEventListener('input', e=>{
-  const p=photos[editIndex]; p.zoom=parseFloat(e.target.value);
-  $('zoomVal').textContent=p.zoom.toFixed(1)+'×'; zipDirty=true; drawEditor();
-});
-$('brightness').addEventListener('input', e=>{
-  const p=photos[editIndex]; p.brightness=parseInt(e.target.value);
-  $('briVal').textContent=p.brightness+'%'; zipDirty=true; drawEditor();
-});
-$('contrast').addEventListener('input', e=>{
-  const p=photos[editIndex]; p.contrast=parseInt(e.target.value);
-  $('conVal').textContent=p.contrast+'%'; zipDirty=true; drawEditor();
-});
+$('zoom').addEventListener('input', e=>{ const p=photos[editIndex]; p.zoom=parseFloat(e.target.value); $('zoomVal').textContent=p.zoom.toFixed(1)+'×'; zipDirty=true; drawEditor(); });
+$('brightness').addEventListener('input', e=>{ const p=photos[editIndex]; p.brightness=parseInt(e.target.value); $('briVal').textContent=p.brightness+'%'; zipDirty=true; drawEditor(); });
+$('contrast').addEventListener('input', e=>{ const p=photos[editIndex]; p.contrast=parseInt(e.target.value); $('conVal').textContent=p.contrast+'%'; zipDirty=true; drawEditor(); });
 
 /* ---- tools ---- */
 const toolHints = {
@@ -672,8 +942,7 @@ const toolHints = {
 document.querySelectorAll('.tool').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     document.querySelectorAll('.tool').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    tool = btn.dataset.tool;
+    btn.classList.add('active'); tool = btn.dataset.tool;
     $('toolHint').textContent = toolHints[tool];
   });
 });
@@ -693,16 +962,14 @@ SWATCH_COLORS.forEach((c,i)=>{
   swatchWrap.appendChild(s);
 });
 
-/* ---- navigation ---- */
+/* ---- editor nav / foot ---- */
 $('btnPrev').addEventListener('click', ()=>{ if(editIndex>0){editIndex--;loadEditorPhoto();} });
 $('btnNext').addEventListener('click', ()=>{ if(editIndex<photos.length-1){editIndex++;loadEditorPhoto();} });
-
 $('btnReset').addEventListener('click', ()=>{
   const p=photos[editIndex];
   p.brightness=100;p.contrast=100;p.zoom=1;p.panX=0.5;p.panY=0.5;p.annotations=[];
   selectedAnno=null; zipDirty=true; loadEditorPhoto();
 });
-
 $('btnBack').addEventListener('click', finishEditing);
 $('btnDone').addEventListener('click', finishEditing);
 async function finishEditing(){
@@ -730,7 +997,6 @@ function hitAnno(pos){
   }
   return null;
 }
-
 edCanvas.addEventListener('pointerdown', e=>{
   e.preventDefault();
   edCanvas.setPointerCapture(e.pointerId);
@@ -742,17 +1008,12 @@ edCanvas.addEventListener('pointerdown', e=>{
     if(a){ p.annotations=p.annotations.filter(x=>x!==a); selectedAnno=null; zipDirty=true; drawEditor(); }
     return;
   }
-
-  // In ANY mode: if you tap an existing annotation, select & start moving it.
   const existing = hitAnno(pos);
   if(existing){
     selectedAnno = existing;
     dragState = {mode:'anno', anno:existing, start:pos, orig:{x:existing.x, y:existing.y}};
-    drawEditor();
-    return;
+    drawEditor(); return;
   }
-
-  // Empty space → the active create tool runs
   if(tool==='text'){
     const txt = prompt('Enter label text:');
     if(txt && txt.trim()){
@@ -768,29 +1029,24 @@ edCanvas.addEventListener('pointerdown', e=>{
     a.x=Math.max(0,Math.min(1-a.w,a.x)); a.y=Math.max(0,Math.min(1-a.h,a.y));
     p.annotations.push(a); selectedAnno=a; zipDirty=true;
     dragState={mode:'anno', anno:a, start:pos, orig:{x:a.x,y:a.y}};
-    drawEditor();
-    return;
+    drawEditor(); return;
   }
-  // Move tool on empty space → pan the (zoomed) image
   selectedAnno=null;
   dragState={mode:'pan', start:pos, orig:{panX:p.panX,panY:p.panY}};
   drawEditor();
 });
-
 edCanvas.addEventListener('pointermove', e=>{
   if(!dragState) return;
   e.preventDefault();
   const pos=canvasPos(e);
   const p=photos[editIndex];
   const dx=pos.x-dragState.start.x, dy=pos.y-dragState.start.y;
-
   if(dragState.mode==='anno'){
     const a=dragState.anno;
     a.x=dragState.orig.x+dx; a.y=dragState.orig.y+dy;
     zipDirty=true; drawEditor();
   } else if(dragState.mode==='pan'){
     if(p.zoom>1){
-      // dragging the image moves the view opposite
       p.panX=Math.max(0,Math.min(1,dragState.orig.panX - dx));
       p.panY=Math.max(0,Math.min(1,dragState.orig.panY - dy));
       zipDirty=true; drawEditor();
@@ -800,13 +1056,37 @@ edCanvas.addEventListener('pointermove', e=>{
 function endDrag(){ dragState=null; }
 edCanvas.addEventListener('pointerup', endDrag);
 edCanvas.addEventListener('pointercancel', endDrag);
+window.addEventListener('resize', ()=>{ if(screenEditor.style.display==='flex'){ sizeEditorCanvas(); drawEditor(); } });
 
-window.addEventListener('resize', ()=>{
-  if(screenEditor.style.display==='flex'){ sizeEditorCanvas(); drawEditor(); }
+/* ======================= JOB-DETAILS FORM LOGIC ======================= */
+function updateAddressUI(){
+  const v = $('address').value;
+  const custom = v==='__custom';
+  $('addressCustom').classList.toggle('hidden', !custom);
+  $('aptWrap').classList.toggle('hidden', custom || !v);
+  if(custom) $('apt').value='';
+}
+$('address').addEventListener('change', updateAddressUI);
+$('inspType').addEventListener('change', ()=>{
+  $('inspTypeCustom').classList.toggle('hidden', $('inspType').value!=='__custom');
 });
+$('stampDate').addEventListener('change', ()=>{
+  $('dateOpts').classList.toggle('hidden', !$('stampDate').checked);
+});
+$('dateFmtSeg').querySelectorAll('button').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    $('dateFmtSeg').querySelectorAll('button').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active'); dateFmt = b.dataset.fmt;
+  });
+});
+$('btnOverride').addEventListener('click', ()=>{ $('overrideWrap').classList.toggle('hidden'); });
+$('overrideDate').addEventListener('change', e=>{
+  overrideDateVal = e.target.value ? new Date(e.target.value + 'T12:00:00') : null;
+});
+$('btnClearOverride').addEventListener('click', ()=>{ $('overrideDate').value=''; overrideDateVal=null; });
 
-// keep title in sync if user edits property name after upload (via start-over flow not needed here)
-propertyName.addEventListener('input', ()=>{ if(!screenActions.classList.contains('hidden')) { $('actTitle').textContent = propertyName.value.trim()||'Inspection Photos'; zipDirty=true; } });
+// init form state
+updateAddressUI();
 </script>
 </body>
 </html>
