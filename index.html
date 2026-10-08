@@ -223,24 +223,10 @@
       <input class="txt hidden" id="inspTypeCustom" type="text" placeholder="Enter inspection type" style="margin-top:8px;" autocomplete="off">
 
       <label class="fld" for="address">Address</label>
-      <select class="sel" id="address">
-        <option value="">Select address…</option>
-        <!-- address options injected by JS -->
-      </select>
-      <input class="txt hidden" id="addressCustom" type="text" placeholder="Enter address" style="margin-top:8px;" autocomplete="off">
-
-      <div id="aptWrap" class="hidden">
-        <label class="fld" for="apt">APT #</label>
-        <select class="sel" id="apt">
-          <option value="">—</option>
-          <option>1</option><option>2</option><option>3</option><option>4</option>
-          <option>5</option><option>6</option><option>7</option><option>8</option>
-        </select>
-      </div>
+      <input class="txt" id="address" type="text" placeholder="Enter address (used for file names only)" autocomplete="off">
 
       <label class="fld" style="margin-top:18px;">Photo Tags</label>
       <label class="switch"><input type="checkbox" id="stampType" checked><span class="track"></span> Stamp inspection type on photos</label>
-      <label class="switch"><input type="checkbox" id="stampAddress" checked><span class="track"></span> Stamp address on photos</label>
       <label class="switch"><input type="checkbox" id="stampDate" checked><span class="track"></span> Stamp date on photos</label>
 
       <div id="dateOpts">
@@ -377,28 +363,6 @@ const TARGET_BYTES = 24 * 1024 * 1024;   // aim under 25MB with headroom
 const SWATCH_COLORS = ['#e81123','#ffb900','#107c10','#0078d7','#ffffff','#000000'];
 const TAG_FONT = 'Arial, "Helvetica Neue", Helvetica, sans-serif';  // tags + annotation text
 
-// PC property addresses (from PC Addresses.txt), in file order.
-const PC_ADDRESSES = [
-  "7101 Yorktown Rd","7103 Yorktown Rd","7105 Yorktown Rd","7106 Yorktown Rd","7107 Yorktown Rd",
-  "7108 Yorktown Rd","7109 Yorktown Rd","7110 Yorktown Rd","7112 Yorktown Rd","7308 Yorktown Rd",
-  "7313 Yorktown Rd","7333 Yorktown Rd","7335 Yorktown Rd","7400 Yorktown Rd","7401 Yorktown Rd","7403 Yorktown Rd",
-  "7113 Yorktown Ter","7115 Yorktown Ter","7117 Yorktown Ter","7119 Yorktown Ter","7121 Yorktown Ter","7123 Yorktown Ter",
-  "7401 Yorktown Ter","7403 Yorktown Ter","7405 Yorktown Ter","7407 Yorktown Ter","7409 Yorktown Ter","7411 Yorktown Ter",
-  "7413 Yorktown Ter","7415 Yorktown Ter","7417 Yorktown Ter",
-  "7212 Yorktown Ct","7214 Yorktown Ct","7301 Yorktown Ct","7302 Yorktown Ct","7303 Yorktown Ct","7304 Yorktown Ct",
-  "7400 Patrick Henry Rd","7402 Patrick Henry Rd","7404 Patrick Henry Rd",
-  "7201 Patrick Henry Ct","7202 Patrick Henry Ct","7203 Patrick Henry Ct","7204 Patrick Henry Ct","7205 Patrick Henry Ct",
-  "7206 Patrick Henry Ct","7207 Patrick Henry Ct","7208 Patrick Henry Ct","7500 Patrick Henry Ct","7502 Patrick Henry Ct",
-  "7500 Outer Loop","7502 Outer Loop","7504 Outer Loop","7506 Outer Loop",
-  "7102 National Tpke","7104 National Tpke","7340 National Tpke","7342 National Tpke",
-  "7202 Old Glory Ct","7203 Old Glory Ct","7204 Old Glory Ct","7205 Old Glory Ct","7206 Old Glory Ct","7207 Old Glory Ct",
-  "7208 Old Glory Ct","7209 Old Glory Ct","7210 Old Glory Ct","7211 Old Glory Ct","7213 Old Glory Ct","7215 Old Glory Ct",
-  "7217 Old Glory Ct","7219 Old Glory Ct","7301 Old Glory Ct","7302 Old Glory Ct","7303 Old Glory Ct","7304 Old Glory Ct",
-  "7305 Old Glory Ct","7306 Old Glory Ct","7332 Old Glory Ct","7334 Old Glory Ct",
-  "7300 Garrison Rd","7301 Garrison Rd","7302 Garrison Rd","7303 Garrison Rd","7304 Garrison Rd","7305 Garrison Rd",
-  "7306 Garrison Rd","7307 Garrison Rd","7308 Garrison Rd","7309 Garrison Rd"
-];
-
 let photos = [];
 let editIndex = 0;
 let zipBlob = null;
@@ -425,52 +389,17 @@ const btnDownload = $('btnDownload'), btnEmail = $('btnEmail'), btnEdit = $('btn
 const edCanvas = $('edCanvas'), edCtx = edCanvas.getContext('2d');
 const SAN = s => s.replace(/[\\/:*?"<>|]/g,'_');
 
-/* ---------- build address dropdown (grouped by street) ---------- */
-(function buildAddressOptions(){
-  const sel = $('address');
-  const groups = {}, order = [];
-  PC_ADDRESSES.forEach(a=>{
-    const street = a.slice(a.indexOf(' ')+1);
-    if(!groups[street]){ groups[street]=[]; order.push(street); }
-    groups[street].push(a);
-  });
-  order.forEach(street=>{
-    const og = document.createElement('optgroup');
-    og.label = street;
-    groups[street].forEach(a=>{
-      const o = document.createElement('option');
-      o.value = a; o.textContent = a;
-      og.appendChild(o);
-    });
-    sel.appendChild(og);
-  });
-  const c = document.createElement('option');
-  c.value = '__custom'; c.textContent = 'Custom address…';
-  sel.appendChild(c);
-})();
-
 /* ---------- job detail getters ---------- */
 function getInspectionType(){
   const v = $('inspType').value;
   return v==='__custom' ? $('inspTypeCustom').value.trim() : (v||'');
 }
-function getAddressText(){
-  const v = $('address').value;
-  return v==='__custom' ? $('addressCustom').value.trim() : (v||'');
-}
-function isListedAddress(){ const v=$('address').value; return !!v && v!=='__custom'; }
-function getApt(){ return isListedAddress() ? ($('apt').value||'') : ''; }
-function addressTagText(){
-  const a = getAddressText(); if(!a) return '';
-  const apt = getApt();
-  return apt ? `${a} APT# ${apt}` : a;
-}
+function addressText(){ return $('address').value.trim(); }
 function getJobBaseName(){
-  const a = addressTagText(), t = getInspectionType();
+  const a = addressText(), t = getInspectionType();
   if(a && t) return `${a} - ${t}`;
   return a || t || 'Inspection Photos';
 }
-function stampAddrOn(){ return $('stampAddress').checked; }
 function stampDateOn(){ return $('stampDate').checked; }
 function stampTypeOn(){ return $('stampType').checked; }
 
@@ -631,12 +560,12 @@ function renderPhoto(p, maxDim){
   return c;
 }
 
-/* ---------- photo tags: inspection type (yellow) over address (green) bottom-left; date (green) bottom-right ---------- */
+/* ---------- photo tags: inspection type (yellow) bottom-left; date (green) bottom-right ---------- */
 function drawTags(ctx, p, W, H){
-  const addrOn = stampAddrOn(), dateOn = stampDateOn(), typeOn = stampTypeOn();
-  if(!addrOn && !dateOn && !typeOn) return;
+  const dateOn = stampDateOn(), typeOn = stampTypeOn();
+  if(!dateOn && !typeOn) return;
   const pad = Math.max(6, Math.round(W*0.014));
-  const fs  = Math.max(11, Math.round(W*0.022));   // address / date size (normal weight)
+  const fs  = Math.max(11, Math.round(W*0.022));   // type / date size (normal weight)
   const typeFs = Math.max(9, Math.round(fs*0.8));  // inspection type (smaller)
   const GREEN = '#39ff14', YELLOW = '#ffdd00';
 
@@ -657,11 +586,8 @@ function drawTags(ctx, p, W, H){
   }
 
   const y = H - pad;
-  const addr = addrOn ? addressTagText() : '';
   const type = typeOn ? getInspectionType() : '';
-  let baseY = y;
-  if(addr){ line(addr, pad, baseY, fs, GREEN, 'left'); baseY -= Math.round(fs*1.18); }
-  if(type){ line(type, pad, baseY, typeFs, YELLOW, 'left'); }
+  if(type){ line(type, pad, y, typeFs, YELLOW, 'left'); }
   if(dateOn){
     const d = photoDate(p);
     const t = d ? formatDate(d, dateFmt==='datetime') : '';
@@ -822,7 +748,7 @@ async function buildPdfBlob(orientation){
   for(let i=0;i<photos.length;i++){
     const p = photos[i];
     if(i>0) doc.addPage('letter', orientation);
-    const cap = [getInspectionType(), addressTagText(), formatDate(photoDate(p), dateFmt==='datetime')]
+    const cap = [getInspectionType(), formatDate(photoDate(p), dateFmt==='datetime')]
                   .filter(Boolean).join('  ·  ') || 'Inspection Photo';
     doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(30);
     doc.text(cap, margin, margin, {baseline:'top'});
@@ -1059,14 +985,6 @@ edCanvas.addEventListener('pointercancel', endDrag);
 window.addEventListener('resize', ()=>{ if(screenEditor.style.display==='flex'){ sizeEditorCanvas(); drawEditor(); } });
 
 /* ======================= JOB-DETAILS FORM LOGIC ======================= */
-function updateAddressUI(){
-  const v = $('address').value;
-  const custom = v==='__custom';
-  $('addressCustom').classList.toggle('hidden', !custom);
-  $('aptWrap').classList.toggle('hidden', custom || !v);
-  if(custom) $('apt').value='';
-}
-$('address').addEventListener('change', updateAddressUI);
 $('inspType').addEventListener('change', ()=>{
   $('inspTypeCustom').classList.toggle('hidden', $('inspType').value!=='__custom');
 });
@@ -1085,8 +1003,6 @@ $('overrideDate').addEventListener('change', e=>{
 });
 $('btnClearOverride').addEventListener('click', ()=>{ $('overrideDate').value=''; overrideDateVal=null; });
 
-// init form state
-updateAddressUI();
 </script>
 </body>
 </html>
